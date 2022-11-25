@@ -13,6 +13,7 @@
 #include <dt-bindings/mailbox/qcom-ipcc.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
+#include <dt-bindings/phy/phy-qcom-qmp.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -631,7 +632,7 @@
 				 <0>,
 				 <0>,
 				 <0>,
-				 <&usb_1_qmpphy>;
+				 <&usb_dp_qmpphy QMP_USB43DP_USB3_PIPE_CLK>;
 		};
 
 		ipcc: mailbox@408000 {
@@ -1448,17 +1449,15 @@
 			status = "disabled";
 		};
 
-		usb_1_qmpphy: phy-wrapper@88e9000 {
-			compatible = "qcom,sm8550-qmp-usb3-phy";
-			reg = <0x0 0x088e9000 0x0 0x2000>,
-			      <0x0 0x088e8000 0x0 0x20>;
+		usb_dp_qmpphy: phy@88e8000 {
+			compatible = "qcom,sm8550-qmp-usb3-dp-phy";
+			reg = <0x0 0x088e8000 0x0 0x3000>;
 
-			clocks = <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>,
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB3_PRIM_PHY_AUX_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
-				 <&gcc GCC_USB3_PRIM_PHY_COM_AUX_CLK>;
-			clock-names = "pipe", "aux", "ref", "com_aux";
-			clock-output-names = "usb3_phy_pipe_clk_src";
+				 <&gcc GCC_USB3_PRIM_PHY_COM_AUX_CLK>,
+				 <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
+			clock-names = "ref", "aux", "com_aux", "usb3_pipe";
 
 			resets = <&gcc GCC_USB3_DP_PHY_PRIM_BCR>,
 				 <&gcc GCC_USB3_PHY_PRIM_BCR>;
@@ -1468,9 +1467,9 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 
-			#clock-cells = <0>;
+			#clock-cells = <1>;
 
-			#phy-cells = <0>;
+			#phy-cells = <1>;
 
 			ranges;
 
@@ -1526,7 +1525,7 @@
 				snps,dis_u2_susphy_quirk;
 				snps,dis_enblslpm_quirk;
 				snps,usb3_lpm_capable;
-				phys = <&usb_1_qmpphy>, <&usb_1_hsphy>;
+				phys = <&usb_dp_qmpphy QMP_USB43DP_USB3_PHY>, <&usb_1_hsphy>;
 				phy-names = "usb3-phy", "usb2-phy";
 			};
 		};
