@@ -174,25 +174,27 @@ static int cbf_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 			       void *data)
 {
 	struct clk_notifier_data *cnd = data;
-	struct clk_hw *parent;
 	int ret;
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
-		parent = clk_hw_get_parent_by_index(&cbf_mux.clkr.hw, CBF_DIV_INDEX);
-		ret = clk_cbf_8996_mux_set_parent(&cbf_mux.clkr.hw, CBF_DIV_INDEX);
-
-		if (cnd->old_rate > DIV_THRESHOLD && cnd->new_rate < DIV_THRESHOLD)
-			ret = clk_set_rate(parent->clk, cnd->old_rate / 2);
+		/*
+		 * Avoid overvolting. clk_core_set_rate_nolock() walks from top
+		 * to bottom, so it will change the rate of the PLL before
+		 * chaging the parent of PMUX. This can result in pmux getting
+		 * clocked twice the expected rate.
+		 *
+		 * Manually switch to PLL/2 here.
+		 */
+		if (cnd->old_rate > DIV_THRESHOLD &&
+		    cnd->new_rate < DIV_THRESHOLD)
+			clk_cbf_8996_mux_set_parent(&cbf_mux.clkr.hw, CBF_DIV_INDEX);
 		break;
-	case POST_RATE_CHANGE:
-		if (cnd->new_rate < DIV_THRESHOLD)
-			ret = clk_cbf_8996_mux_set_parent(&cbf_mux.clkr.hw, CBF_DIV_INDEX);
-		else {
-			parent = clk_hw_get_parent_by_index(&cbf_mux.clkr.hw, CBF_PLL_INDEX);
-			clk_set_rate(parent->clk, cnd->new_rate);
-			ret = clk_cbf_8996_mux_set_parent(&cbf_mux.clkr.hw, CBF_PLL_INDEX);
-		}
+	case ABORT_RATE_CHANGE:
+		/* Revert manual change */
+		if (cnd->new_rate < DIV_THRESHOLD &&
+		    cnd->old_rate > DIV_THRESHOLD)
+			clk_cbf_8996_mux_set_parent(&cbf_mux.clkr.hw, CBF_PLL_INDEX);
 		break;
 	default:
 		ret = 0;
