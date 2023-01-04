@@ -31,6 +31,9 @@ enum {
 
 #define CBF_MUX_OFFSET		0x18
 #define CBF_MUX_PARENT_MASK		GENMASK(1, 0)
+#define CBF_MUX_AUTO_CLK_SEL_ALWAYS_ON_MASK GENMASK(5, 4)
+#define CBF_MUX_AUTO_CLK_SEL_ALWAYS_ON_GPLL0_SEL \
+	FIELD_PREP(CBF_MUX_AUTO_CLK_SEL_ALWAYS_ON_MASK, 0x03)
 #define CBF_MUX_AUTO_CLK_SEL_BIT	BIT(6)
 
 #define CBF_PLL_OFFSET 0xf000
@@ -371,10 +374,23 @@ static int qcom_msm8996_cbf_probe(struct platform_device *pdev)
 	/* Ensure write goes through before PLLs are reconfigured */
 	udelay(5);
 
+	/* Set the auto clock sel always-on source to GPLL0/2 (300MHz) */
+	regmap_update_bits(regmap, CBF_MUX_OFFSET,
+			   CBF_MUX_AUTO_CLK_SEL_ALWAYS_ON_MASK,
+			   CBF_MUX_AUTO_CLK_SEL_ALWAYS_ON_GPLL0_SEL);
+
 	clk_alpha_pll_configure(&cbf_pll, regmap, &cbfpll_config);
 
 	/* Wait for PLL(s) to lock */
         udelay(50);
+
+	/* Enable auto clock selection for CBF */
+	regmap_update_bits(regmap, CBF_MUX_OFFSET,
+			   CBF_MUX_AUTO_CLK_SEL_BIT,
+			   CBF_MUX_AUTO_CLK_SEL_BIT);
+
+	/* Ensure write goes through before muxes are switched */
+	udelay(5);
 
 	/* Switch CBF to use the primary PLL */
 	regmap_update_bits(regmap, CBF_MUX_OFFSET,
