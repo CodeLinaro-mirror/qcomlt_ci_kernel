@@ -99,29 +99,21 @@ struct clk_cbf_8996_mux {
 	struct clk_regmap clkr;
 };
 
+static struct clk_cbf_8996_mux *to_clk_cbf_8996_mux(struct clk_regmap *clkr)
+{
+	return container_of(clkr, struct clk_cbf_8996_mux, clkr);
+}
+
 static int cbf_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 			       void *data);
-static const struct clk_ops clk_cbf_8996_mux_ops;
-
-static struct clk_cbf_8996_mux cbf_mux = {
-	.reg = CBF_MUX_OFFSET,
-	.nb.notifier_call = cbf_clk_notifier_cb,
-	.clkr.hw.init = &(struct clk_init_data) {
-		.name = "cbf_mux",
-		.parent_data = cbf_mux_parent_data,
-		.num_parents = ARRAY_SIZE(cbf_mux_parent_data),
-		.ops = &clk_cbf_8996_mux_ops,
-		/* CPU clock is critical and should never be gated */
-		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
-	},
-};
 
 static u8 clk_cbf_8996_mux_get_parent(struct clk_hw *hw)
 {
 	struct clk_regmap *clkr = to_clk_regmap(hw);
+	struct clk_cbf_8996_mux *mux = to_clk_cbf_8996_mux(clkr);
 	u32 val;
 
-	regmap_read(clkr->regmap, cbf_mux.reg, &val);
+	regmap_read(clkr->regmap, mux->reg, &val);
 
 	return FIELD_GET(CBF_MUX_PARENT_MASK, val);
 }
@@ -129,12 +121,12 @@ static u8 clk_cbf_8996_mux_get_parent(struct clk_hw *hw)
 static int clk_cbf_8996_mux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_regmap *clkr = to_clk_regmap(hw);
+	struct clk_cbf_8996_mux *mux = to_clk_cbf_8996_mux(clkr);
 	u32 val;
 
-	pr_info("CBF: SET parent to %d\n", index);
 	val = FIELD_PREP(CBF_MUX_PARENT_MASK, index);
 
-	return regmap_update_bits(clkr->regmap, cbf_mux.reg, CBF_MUX_PARENT_MASK, val);
+	return regmap_update_bits(clkr->regmap, mux->reg, CBF_MUX_PARENT_MASK, val);
 }
 
 static int clk_cbf_8996_mux_determine_rate(struct clk_hw *hw,
@@ -163,6 +155,19 @@ static const struct clk_ops clk_cbf_8996_mux_ops = {
 	.set_parent = clk_cbf_8996_mux_set_parent,
 	.get_parent = clk_cbf_8996_mux_get_parent,
 	.determine_rate = clk_cbf_8996_mux_determine_rate,
+};
+
+static struct clk_cbf_8996_mux cbf_mux = {
+	.reg = CBF_MUX_OFFSET,
+	.nb.notifier_call = cbf_clk_notifier_cb,
+	.clkr.hw.init = &(struct clk_init_data) {
+		.name = "cbf_mux",
+		.parent_data = cbf_mux_parent_data,
+		.num_parents = ARRAY_SIZE(cbf_mux_parent_data),
+		.ops = &clk_cbf_8996_mux_ops,
+		/* CPU clock is critical and should never be gated */
+		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
+	},
 };
 
 static int cbf_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
